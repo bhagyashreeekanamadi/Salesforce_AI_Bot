@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # BACKEND_URL = "http://127.0.0.1:8000"
-BACKEND_URL = "https://salesforce-interview-ai-backend.onrender.com"
+BACKEND_URL = "https://salesforce-ai-bot-2.onrender.com"
 
 
 # ==========================================
