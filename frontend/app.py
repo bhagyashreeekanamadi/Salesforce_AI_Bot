@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import speech_recognition as sr
 
 # ==========================================
 # PAGE CONFIG
@@ -12,9 +11,34 @@ st.set_page_config(
     layout="centered"
 )
 
+# ==========================================
+# BACKEND URL
+# ==========================================
+
 # BACKEND_URL = "http://127.0.0.1:8000"
+
 BACKEND_URL = "https://salesforce-ai-bot-2.onrender.com"
 
+# ==========================================
+# SAFE JSON RESPONSE FUNCTION
+# ==========================================
+
+def safe_json_response(response):
+
+    try:
+        return response.json()
+
+    except Exception:
+
+        st.error("Backend returned invalid response")
+
+        st.write("Status Code:", response.status_code)
+
+        st.write("Response Text:")
+
+        st.code(response.text)
+
+        return None
 
 # ==========================================
 # TITLE
@@ -41,13 +65,26 @@ st.subheader("🎯 Interview Question")
 
 if st.button("Generate Question"):
 
-    response = requests.get(
-        f"{BACKEND_URL}/generate-question"
-    )
+    try:
 
-    data = response.json()
+        response = requests.get(
+            f"{BACKEND_URL}/generate-question",
+            timeout=30
+        )
 
-    st.session_state.question = data["question"]
+        data = safe_json_response(response)
+
+        if data and "question" in data:
+
+            st.session_state.question = data["question"]
+
+        else:
+
+            st.error("Failed to generate question.")
+
+    except Exception as e:
+
+        st.error(f"Request Failed: {str(e)}")
 
 # ==========================================
 # DISPLAY QUESTION
@@ -84,38 +121,47 @@ if st.session_state.question:
                 "answer": typed_answer
             }
 
-            with st.spinner("Evaluating Answer..."):
+            try:
 
-                response = requests.post(
-                    f"{BACKEND_URL}/evaluate-answer",
-                    json=payload
-                )
+                with st.spinner("Evaluating Answer..."):
 
-            data = response.json()
+                    response = requests.post(
+                        f"{BACKEND_URL}/evaluate-answer",
+                        json=payload,
+                        timeout=60
+                    )
 
-            evaluation = data["evaluation"]
-            score = data["score"]
+                data = safe_json_response(response)
 
-            # ==========================================
-            # SCORE DISPLAY
-            # ==========================================
+                if data:
 
-            st.subheader("📊 Interview Score")
+                    evaluation = data.get("evaluation", "No evaluation")
+                    score = data.get("score", 0)
 
-            st.progress(score / 100)
+                    # ==========================================
+                    # SCORE DISPLAY
+                    # ==========================================
 
-            st.metric(
-                label="Score",
-                value=f"{score}/100"
-            )
+                    st.subheader("📊 Interview Score")
 
-            # ==========================================
-            # FEEDBACK DISPLAY
-            # ==========================================
+                    st.progress(score / 100)
 
-            st.subheader("📝 AI Feedback")
+                    st.metric(
+                        label="Score",
+                        value=f"{score}/100"
+                    )
 
-            st.success(evaluation)
+                    # ==========================================
+                    # FEEDBACK DISPLAY
+                    # ==========================================
+
+                    st.subheader("📝 AI Feedback")
+
+                    st.success(evaluation)
+
+            except Exception as e:
+
+                st.error(f"Request Failed: {str(e)}")
 
     # ==========================================
     # VOICE MODE
@@ -123,67 +169,9 @@ if st.session_state.question:
 
     elif mode == "Voice Mode":
 
-        st.write("Click below and speak your answer.")
-
-        if st.button("🎤 Record Voice Answer"):
-
-            recognizer = sr.Recognizer()
-
-            try:
-
-                with sr.Microphone() as source:
-
-                    st.info("Listening...")
-
-                    audio = recognizer.listen(source)
-
-                voice_text = recognizer.recognize_google(audio)
-
-                st.subheader("🗣 Your Answer")
-
-                st.success(voice_text)
-
-                payload = {
-                    "question": st.session_state.question,
-                    "answer": voice_text
-                }
-
-                with st.spinner("Evaluating Voice Answer..."):
-
-                    response = requests.post(
-                        f"{BACKEND_URL}/evaluate-answer",
-                        json=payload
-                    )
-
-                data = response.json()
-
-                evaluation = data["evaluation"]
-                score = data["score"]
-
-                # ==========================================
-                # SCORE DISPLAY
-                # ==========================================
-
-                st.subheader("📊 Interview Score")
-
-                st.progress(score / 100)
-
-                st.metric(
-                    label="Score",
-                    value=f"{score}/100"
-                )
-
-                # ==========================================
-                # FEEDBACK DISPLAY
-                # ==========================================
-
-                st.subheader("📝 AI Feedback")
-
-                st.success(evaluation)
-
-            except Exception as e:
-
-                st.error(str(e))
+        st.info(
+            "🎤 Voice Interview Feature is currently in progress and under implementation."
+        )
 
 # ==========================================
 # EXPLAIN CONCEPT
@@ -203,18 +191,32 @@ if st.button("Explain Concept"):
         "concept": concept
     }
 
-    with st.spinner("Generating Explanation..."):
+    try:
 
-        response = requests.post(
-            f"{BACKEND_URL}/explain-concept",
-            json=payload
-        )
+        with st.spinner("Generating Explanation..."):
 
-    explanation = response.json()["explanation"]
+            response = requests.post(
+                f"{BACKEND_URL}/explain-concept",
+                json=payload,
+                timeout=60
+            )
 
-    st.subheader("📖 Explanation")
+        data = safe_json_response(response)
 
-    st.success(explanation)
+        if data:
+
+            explanation = data.get(
+                "explanation",
+                "No explanation generated."
+            )
+
+            st.subheader("📖 Explanation")
+
+            st.success(explanation)
+
+    except Exception as e:
+
+        st.error(f"Request Failed: {str(e)}")
 
 # ==========================================
 # FOOTER
