@@ -223,5 +223,5 @@ if st.button("Explain Concept"):
 st.markdown("---")
 
 st.caption(
-    "Built with FastAPI + Streamlit + OpenAI"
+    "Built with FastAPI + Streamlit | By Bhagyashree Kanamadi"
 )
