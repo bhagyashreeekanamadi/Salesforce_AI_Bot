@@ -82,7 +82,7 @@ def generate_question():
     )
 
     return {
-        "question": response.choices[0].message.content
+        "question": response.choices[0].message.content.strip()
     }
 
 # ==========================================
