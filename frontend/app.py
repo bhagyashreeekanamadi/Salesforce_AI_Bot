@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 
 # ==========================================
 # PAGE CONFIG
@@ -15,30 +16,65 @@ st.set_page_config(
 # BACKEND URL
 # ==========================================
 
-# BACKEND_URL = "http://127.0.0.1:8000"
-
 BACKEND_URL = "https://salesforce-ai-bot-2.onrender.com"
 
 # ==========================================
-# SAFE JSON RESPONSE FUNCTION
+# SAFE JSON RESPONSE
 # ==========================================
 
 def safe_json_response(response):
+
+    if response.status_code != 200:
+
+        st.error(f"Backend Error: {response.status_code}")
+
+        st.code(response.text)
+
+        return None
 
     try:
         return response.json()
 
     except Exception:
 
-        st.error("Backend returned invalid response")
-
-        st.write("Status Code:", response.status_code)
-
-        st.write("Response Text:")
+        st.error("Invalid JSON Response")
 
         st.code(response.text)
 
         return None
+
+# ==========================================
+# RETRY REQUEST
+# ==========================================
+
+def make_request(method, endpoint, payload=None):
+
+    for i in range(3):
+
+        try:
+
+            if method == "GET":
+
+                response = requests.get(
+                    f"{BACKEND_URL}{endpoint}",
+                    timeout=60
+                )
+
+            else:
+
+                response = requests.post(
+                    f"{BACKEND_URL}{endpoint}",
+                    json=payload,
+                    timeout=60
+                )
+
+            return response
+
+        except Exception:
+
+            time.sleep(5)
+
+    return None
 
 # ==========================================
 # TITLE
@@ -46,9 +82,7 @@ def safe_json_response(response):
 
 st.title("🤖 Salesforce Interview AI Chatbot")
 
-st.write(
-    "Practice Salesforce interviews using AI."
-)
+st.write("Practice Salesforce interviews using AI.")
 
 # ==========================================
 # SESSION STATE
@@ -65,12 +99,14 @@ st.subheader("🎯 Interview Question")
 
 if st.button("Generate Question"):
 
-    try:
+    with st.spinner("Generating Question..."):
 
-        response = requests.get(
-            f"{BACKEND_URL}/generate-question",
-            timeout=30
+        response = make_request(
+            "GET",
+            "/generate-question"
         )
+
+    if response:
 
         data = safe_json_response(response)
 
@@ -82,9 +118,9 @@ if st.button("Generate Question"):
 
             st.error("Failed to generate question.")
 
-    except Exception as e:
+    else:
 
-        st.error(f"Request Failed: {str(e)}")
+        st.error("Backend unavailable.")
 
 # ==========================================
 # DISPLAY QUESTION
@@ -121,25 +157,32 @@ if st.session_state.question:
                 "answer": typed_answer
             }
 
-            try:
+            with st.spinner("Evaluating Answer..."):
 
-                with st.spinner("Evaluating Answer..."):
+                response = make_request(
+                    "POST",
+                    "/evaluate-answer",
+                    payload
+                )
 
-                    response = requests.post(
-                        f"{BACKEND_URL}/evaluate-answer",
-                        json=payload,
-                        timeout=60
-                    )
+            if response:
 
                 data = safe_json_response(response)
 
                 if data:
 
-                    evaluation = data.get("evaluation", "No evaluation")
-                    score = data.get("score", 0)
+                    evaluation = data.get(
+                        "evaluation",
+                        "No evaluation"
+                    )
+
+                    score = data.get(
+                        "score",
+                        0
+                    )
 
                     # ==========================================
-                    # SCORE DISPLAY
+                    # SCORE
                     # ==========================================
 
                     st.subheader("📊 Interview Score")
@@ -152,16 +195,16 @@ if st.session_state.question:
                     )
 
                     # ==========================================
-                    # FEEDBACK DISPLAY
+                    # FEEDBACK
                     # ==========================================
 
                     st.subheader("📝 AI Feedback")
 
                     st.success(evaluation)
 
-            except Exception as e:
+            else:
 
-                st.error(f"Request Failed: {str(e)}")
+                st.error("Backend unavailable.")
 
     # ==========================================
     # VOICE MODE
@@ -170,7 +213,7 @@ if st.session_state.question:
     elif mode == "Voice Mode":
 
         st.info(
-            "🎤 Voice Interview Feature is currently in progress and under implementation."
+            "🎤 Voice Interview Feature is under implementation."
         )
 
 # ==========================================
@@ -191,15 +234,15 @@ if st.button("Explain Concept"):
         "concept": concept
     }
 
-    try:
+    with st.spinner("Generating Explanation..."):
 
-        with st.spinner("Generating Explanation..."):
+        response = make_request(
+            "POST",
+            "/explain-concept",
+            payload
+        )
 
-            response = requests.post(
-                f"{BACKEND_URL}/explain-concept",
-                json=payload,
-                timeout=60
-            )
+    if response:
 
         data = safe_json_response(response)
 
@@ -214,9 +257,9 @@ if st.button("Explain Concept"):
 
             st.success(explanation)
 
-    except Exception as e:
+    else:
 
-        st.error(f"Request Failed: {str(e)}")
+        st.error("Backend unavailable.")
 
 # ==========================================
 # FOOTER
@@ -225,5 +268,5 @@ if st.button("Explain Concept"):
 st.markdown("---")
 
 st.caption(
-    "Built with FastAPI + Streamlit | By Bhagyashree Kanamadi"
+    "Built with FastAPI + Streamlit + Groq | By Bhagyashree Kanamadi"
 )
